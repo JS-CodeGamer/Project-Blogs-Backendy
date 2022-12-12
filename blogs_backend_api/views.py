@@ -6,8 +6,8 @@ from rest_framework.reverse import reverse
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from blogs_microservice.settings import SECRET_KEY
-from rest_framework.exceptions import PermissionDenied, NotAuthenticated
-from rest_framework.pagination import PageNumberPagination
+from rest_framework.exceptions import PermissionDenied, NotAuthenticated, NotFound
+from rest_framework_json_api.pagination import JsonApiPageNumberPagination as PageNumberPagination
 
 
 # Create your views here.
@@ -23,13 +23,28 @@ def blogsList(request):
     try:
         author = jwt.decode(request.headers['Authorization'].split(" ")[-1],
                             SECRET_KEY, algorithms=["HS256"])['username']
-        blogs = Blogs.objects.filter(author=author)
+        blogs = Blogs.objects.filter(author=author).order_by('id')
     except:
-        blogs = Blogs.objects.all();
+        blogs = Blogs.objects.all().order_by('id')
     paginator = PageNumberPagination()
-    if 'page_size' in request.data:
+    try:
         paginator.page_size = int(request.data['page_size'])
-    else:
+    except:
+        paginator.page_size = 10
+    result_page = paginator.paginate_queryset(blogs, request)
+    serializer = BlogSerializer(result_page, many=True)
+    return paginator.get_paginated_response(serializer.data)
+
+
+@api_view(['GET'])
+def blogsListUser(request, pk=None):
+    blogs = Blogs.objects.filter(author=pk).order_by('id')
+    if not pk or len(blogs) == 0:
+        raise NotFound(detail="No Blogs found related to user")
+    paginator = PageNumberPagination()
+    try:
+        paginator.page_size = int(request.data['page_size'])
+    except:
         paginator.page_size = 10
     result_page = paginator.paginate_queryset(blogs, request)
     serializer = BlogSerializer(result_page, many=True)
