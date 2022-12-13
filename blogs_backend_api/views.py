@@ -73,7 +73,7 @@ def blog(request, pk=None):
             user = jwt.decode(request.headers['Authorization'].split(" ")[-1],
                                 SECRET_KEY, algorithms=["HS256"])['username']
         except:
-            pass
+            user = None
         blog = Blogs.objects.get(pk=pk)
         serializer = BlogSerializer(blog)
         # GET for getting
